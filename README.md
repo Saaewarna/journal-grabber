@@ -69,16 +69,16 @@ python main.py
 A) Mode Interactive (direkomendasi)
 Isi prompt contoh:
 
-URL: https://namaweb.com/index/login
-user_field: input[name="username"]
-pass_field: input[name="password"]
-wordlist: wordlist.txt
-submit_selector: text=Login (atau button[type="submit"] kalau teksnya beda)
-success_selector: (biarin kosong dulu)
-success_text: (biarin kosong dulu)
-headless: y atau n sesuai selera
-journals: (kosong)
-auto_discover: y
+- URL: https://namaweb.com/index/login
+- user_field: input[name="username"]
+- pass_field: input[name="password"]
+- wordlist: wordlist.txt
+- submit_selector: text=Login (atau button[type="submit"] kalau teksnya beda)
+- success_selector: (biarin kosong dulu)
+- success_text: (biarin kosong dulu)
+- headless: y atau n sesuai selera
+- journals: (kosong)
+- auto_discover: y
 
 B) Mode CLI
 python main.py \
