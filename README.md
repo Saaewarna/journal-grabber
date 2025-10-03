@@ -1,4 +1,4 @@
-# journal-grabber
+how to use journal grabber
 
 python login_tester.py \
 --url https://namadomain.com/akseslogin \
