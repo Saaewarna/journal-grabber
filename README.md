@@ -3,21 +3,13 @@ how to use journal grabber
 1. Masuk ke folder project
 
 2. Buat virtual environment (biar clean)
-  python -m venv venv
-  source venv/bin/activate   # kalau Linux/Mac
-  venv\Scripts\activate      # kalau Windows
+python -m venv venv
+source venv/bin/activate   # kalau Linux/Mac
+venv\Scripts\activate      # kalau Windows
 
-3. Install library yang dipake
-  import requests
-  import beautifulsoup4
-  import pandas as pd
+3. Run pake python.exe -m pip install --upgrade pip
 
-4. Generate requirements.txt
-  pip freeze > requirements.txt
-
-5. Run pake python.exe -m pip install --upgrade pip
-
-6. Run pake pip install -r requirements.txt
+4. Run pake pip install -r requirements.txt
 
 python login_tester.py \
 --url https://namadomain.com/akseslogin \
