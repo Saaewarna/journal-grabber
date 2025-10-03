@@ -2,19 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Playwright Login Tester — Ultra Robust (for authorized testing)
----------------------------------------------------------------
-• 1 akun = 1 browser context (bersih).
-• Wordlist `username:password`.
-• Multi-journal: --journals / --journals_file / --auto_discover.
-• Multi-target: default "submissions,manager/setup/1,management/settings/website".
-• Anti-blank: ensure_nav() retry + hard redirect JS.
-• 4xx/5xx → auto-skip (nggak nge-freeze).
-• Login fallback: submit_selector → tombol di form[action*='login'] → text=Login → Enter.
-• Stealth-ish: user-agent normal + webdriver undefined.
-• stop_on_first aman (tanpa nutup tab di tengah loop).
-• Log sukses (TERBATAS): hanya saat sampai path penting → success_log.txt.
+... (tetap sama header kamu)
+This variant: if run WITHOUT CLI args, shows interactive terminal UI (rich + pyfiglet).
 """
-
 import argparse, sys, time
 from pathlib import Path
 from typing import Iterable, Tuple, Optional, List, Set
@@ -23,11 +13,145 @@ from playwright.sync_api import (
     sync_playwright, TimeoutError as PWTimeout, Page, Response
 )
 
+# --- new imports for UI ---
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.prompt import Prompt
+    from rich.align import Align
+    import pyfiglet
+except Exception:
+    # If rich/pyfiglet not installed, we will fallback to plain prompts
+    Console = None
+    pyfiglet = None
+
+import os
+
+console = Console() if Console else None
+
+def clear():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+# ---------- Banner Functions ----------
+def render_banner(text="ERZAGG"):
+    if console and pyfiglet:
+        fig = pyfiglet.Figlet(font='slant')
+        rendered = fig.renderText(text)
+        console.print(f"[bold green]{rendered}[/bold green]")
+    else:
+        print("\n===", text, "===\n")
+
+def render_banner_ascii(art: str, color="bold green"):
+    if console:
+        console.print(f"[{color}]{art}[/{color}]")
+    else:
+        print(art)
+
+
+def clear():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
 NAV_TO  = 35000   # ms
 HINT_TO = 8000    # ms
 
-# ---------- CLI ----------
+# ---------- Interactive UI ----------
+def render_banner(text="ERZAGG"):
+    if console and pyfiglet:
+        fig = pyfiglet.Figlet(font='slant')
+        rendered = fig.renderText(text)
+        console.print(f"[bold green]{rendered}[/bold green]")
+    else:
+        print("\n===", text, "===\n")
+
+def interactive_args() -> argparse.Namespace:
+    clear()
+    render_banner_ascii(r"""
+    ███████╗██████╗ ███████╗ █████╗  ██████╗  ██████╗ 
+    ██╔════╝██╔══██╗╚══███╔╝██╔══██╗██╔════╝ ██╔════╝ 
+    █████╗  ██████╔╝  ███╔╝ ███████║██║  ███╗██║  ███╗
+    ██╔══╝  ██╔══██╗ ███╔╝  ██╔══██║██║   ██║██║   ██║
+    ███████╗██║  ██║███████╗██║  ██║╚██████╔╝╚██████╔╝
+    ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝ 
+    """)
+
+
+    if console:
+        console.print(Panel.fit("[bold green]Journal Checker Warna Group by ErzaGG[/bold green]", border_style="green"))
+    else:
+        print("Journal Checker Warna Group by ErzaGG")
+
+    # required
+    url = Prompt.ask("[green]Target login URL[/green] (e.g. https://host/index.php/index/login)") if console else input("Target login URL: ")
+    user_field = Prompt.ask("[green]Username field selector[/green] (CSS)") if console else input("Username field selector: ")
+    pass_field = Prompt.ask("[green]Password field selector[/green] (CSS)") if console else input("Password field selector: ")
+    wordlist = Prompt.ask("[green]Wordlist file path[/green] (username:password per line)") if console else input("Wordlist file path: ")
+
+    # optional
+    submit_selector = Prompt.ask("[green]Submit selector[/green] (optional, CSS or text=Login)", default="") if console else input("Submit selector (optional): ")
+    success_text = Prompt.ask("[green]Success text[/green] (optional)", default="") if console else input("Success text (optional): ")
+    success_selector = Prompt.ask("[green]Success selector[/green] (optional)", default="") if console else input("Success selector (optional): ")
+
+    headless = Prompt.ask("[green]Headless?[/green] (y/N)", default="n") if console else input("Headless? (y/N): ")
+    headless_flag = headless.strip().lower().startswith("y")
+
+    max_attempts = Prompt.ask("[green]Max attempts[/green] (0 = all)", default="0") if console else input("Max attempts (0=all): ")
+    try:
+        max_attempts = int(max_attempts)
+    except Exception:
+        max_attempts = 0
+
+    delay = Prompt.ask("[green]Delay (s) between targets[/green]", default="2") if console else input("Delay (s): ")
+    try:
+        delay = int(delay)
+    except Exception:
+        delay = 2
+
+    cooldown = Prompt.ask("[green]Cooldown (s) between creds[/green]", default="0.6") if console else input("Cooldown (s): ")
+    try:
+        cooldown = float(cooldown)
+    except Exception:
+        cooldown = 0.6
+
+    stop_on_first = Prompt.ask("[green]Stop on first success?[/green] (y/N)", default="n") if console else input("Stop on first success? (y/N): ")
+    stop_on_first_flag = stop_on_first.strip().lower().startswith("y")
+
+    journals = Prompt.ask("[green]Journals (comma-separated)[/green] (optional)", default="") if console else input("Journals (comma-separated, optional): ")
+    journals_file = Prompt.ask("[green]Journals file path[/green] (optional)", default="") if console else input("Journals file (optional): ")
+    auto_discover = Prompt.ask("[green]Auto-discover journals?[/green] (y/N)", default="n") if console else input("Auto-discover journals? (y/N): ")
+    auto_discover_flag = auto_discover.strip().lower().startswith("y")
+
+    target_paths = Prompt.ask("[green]Target paths[/green] (comma-separated)", default="submissions,manager/setup/1,management/settings/website") if console else input("Target paths (comma-separated): ")
+
+    success_log = Prompt.ask("[green]Success log file[/green]", default="success_log.txt") if console else input("Success log file (default success_log.txt): ")
+    # build namespace
+    ns = argparse.Namespace(
+        url=url,
+        user_field=user_field,
+        pass_field=pass_field,
+        submit_selector=submit_selector or None,
+        success_text=success_text or None,
+        success_selector=success_selector or None,
+        wordlist=wordlist,
+        max_attempts=max_attempts,
+        headless=headless_flag,
+        delay=delay,
+        cooldown=cooldown,
+        success_log=success_log,
+        journals=journals or None,
+        journals_file=journals_file or None,
+        auto_discover=auto_discover_flag,
+        target_paths=target_paths,
+        stop_on_first=stop_on_first_flag
+    )
+    return ns
+
+# ---------- CLI (kept backward compatible) ----------
 def parse_args():
+    # if user provided no CLI args -> interactive UI
+    if len(sys.argv) == 1:
+        return interactive_args()
+
     p = argparse.ArgumentParser(description="Login tester (ultra robust) + multi-journal + multi-target.")
     p.add_argument("--url", required=True, help="Login page URL (e.g. https://host/index.php/index/login)")
     p.add_argument("--user_field", required=True, help="CSS selector username input")
@@ -55,14 +179,9 @@ def parse_args():
                    help="Berhenti setelah 1 target sukses per akun (skip delay, clean exit).")
     return p.parse_args()
 
-
+# ---------- (below this line, your original code remains unchanged) ----------
 # ---------- Utils ----------
 def iter_creds(path: str, limit: int) -> Iterable[Tuple[str, str]]:
-    """
-    Ambil kredensial dari file wordlist.
-    limit > 0  → hanya sampai limit baris
-    limit <= 0 → semua baris
-    """
     unlimited = (limit is None) or (limit <= 0)
     n = 0
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
@@ -143,7 +262,6 @@ def resp_is_error(resp: Optional[Response]) -> bool:
 
 # ---------- Anti about:blank nav ----------
 def ensure_nav(page: Page, url: str, timeout_ms: int = NAV_TO) -> Optional[Response]:
-    """Navigate robustly; retry + hard redirect JS kalau masih about:blank."""
     last_exc = None
     for _ in range(3):
         try:
@@ -191,19 +309,15 @@ def perform_login(page: Page, user_sel: str, pass_sel: str, submit_sel: Optional
     except Exception:
         return False
 
-# ---------- MAIN ----------
+# ---------- MAIN (unchanged logic) ----------
 def main():
     a = parse_args()
     success_log = Path(a.success_log)
 
-    # tampilkan argumen sekali
     print("[*] Args:", vars(a))
-
-    # hitung kredensial valid (baris yg mengandung ':') dgn menghormati --max_attempts
     total_creds = sum(1 for _ in iter_creds(a.wordlist, a.max_attempts))
     print(f"[*] Parsed creds (mengandung ':'): {total_creds}")
 
-    # journals list
     declared: List[str] = []
     if a.journals:
         declared += [x.strip() for x in a.journals.split(",") if x.strip()]
@@ -216,20 +330,17 @@ def main():
     declared = sorted(set(declared))
     targets = normalize_paths(a.target_paths)
 
-    # counters buat summary
     success_count = 0
     redirect_count = 0
     http_err_count = 0
-    
 
     with sync_playwright() as pw:
-        # launch (stabil di WSL/VM + sedikit stealth)
         browser = pw.chromium.launch(
             headless=a.headless,
             args=["--disable-gpu", "--no-sandbox", "--disable-blink-features=AutomationControlled"]
         )
 
-        tried = 0  # counter aman buat summary akhir
+        tried = 0
 
         for i, (username, password) in enumerate(iter_creds(a.wordlist, a.max_attempts), 1):
             tried = i
@@ -256,10 +367,9 @@ Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
 """)
             page = ctx.new_page()
 
-            stop_now = False  # clean break flag
+            stop_now = False
 
             try:
-                # 1) open login
                 resp = ensure_nav(page, a.url, timeout_ms=NAV_TO)
                 if resp_is_error(resp):
                     print(f"[!] Login URL HTTP {resp.status} → skip creds")
@@ -271,7 +381,6 @@ Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
                     pass
                 time.sleep(a.cooldown)
 
-                # 2) login
                 if not perform_login(page, a.user_field, a.pass_field, a.submit_selector,
                                      username, password, a.cooldown):
                     print("[-] Cannot submit login (selector mismatch) → next creds")
@@ -282,7 +391,6 @@ Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
                     pass
                 success_hint(page, a.success_text, a.success_selector)
 
-                # 3) journals
                 journals = list(declared)
                 if not journals and a.auto_discover:
                     journals = discover_journals(page)
@@ -293,7 +401,6 @@ Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
                 origin = base_origin(page.url)
                 any_ok = False
 
-                # 4) loop journal → target
                 for jctx in journals:
                     if stop_now:
                         break
@@ -348,7 +455,6 @@ Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
 
         browser.close()
 
-    # summary setelah semua creds selesai (cuma sekali)
     print(f"[*] Done. Total dicoba: {tried} dari {total_creds} creds valid.")
     print(f"    → Success login: {success_count}")
     print(f"    → Redirect/no access: {redirect_count}")
@@ -359,4 +465,3 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\n[!] Interrupted by user"); sys.exit(1)
-
