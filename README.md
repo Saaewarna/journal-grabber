@@ -73,12 +73,18 @@ Isi prompt contoh:
 - user_field: input[name="username"]
 - pass_field: input[name="password"]
 - wordlist: wordlist.txt
-- submit_selector: text=Login (atau button[type="submit"] kalau teksnya beda)
-- success_selector: (biarin kosong dulu)
-- success_text: (biarin kosong dulu)
+- submit_selector: press "enter"
+- success_text: press "enter"
+- success_selector: press "enter"
 - headless: y atau n sesuai selera
-- journals: (kosong)
-- auto_discover: y
+- Max attempts: 0
+- Delay (s) between targets: 2
+- Stop on first success: n
+- Journals (comma-separated): press "enter"
+- Journals file path: press "enter"
+- Auto-discover journals: y
+- Target paths: press "enter"
+- Success log file: press "enter"
 
 B) Mode CLI
 python main.py \
