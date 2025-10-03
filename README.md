@@ -9,3 +9,5 @@ python login_tester.py \
 --target_paths "submissions,manager/setup/1,management/settings/website" \
 --delay 2 \
 --headless
+
+setelah selesai running diatas, result nya bisa dicek di success_log.txt
