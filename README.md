@@ -15,7 +15,9 @@ how to use journal grabber
 4. Generate requirements.txt
   pip freeze > requirements.txt
 
-5. Run pake pip install -r requirements.txt
+5. Run pake python.exe -m pip install --upgrade pip
+
+6. Run pake pip install -r requirements.txt
 
 python login_tester.py \
 --url https://namadomain.com/akseslogin \
